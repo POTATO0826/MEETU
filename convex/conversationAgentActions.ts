@@ -239,7 +239,6 @@ export const analyzeConversation = internalAction({
         prompt: buildUserPrompt(claimed, memories),
         tools: buildTools(ctx, claimed, facts, actions),
         stopWhen: stepCountIs(8),
-        temperature: 0.1,
         maxOutputTokens: 1400,
       });
 
