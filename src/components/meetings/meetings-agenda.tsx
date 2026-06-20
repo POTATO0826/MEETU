@@ -5,7 +5,9 @@ import type { Meeting } from "@/lib/meetings";
 import { dayKey, formatDayLabel, formatLongDate } from "@/lib/format";
 import { MeetingRow } from "./meeting-row";
 import { MeetingDrawer } from "./meeting-drawer";
+import { MeetingsCalendar } from "./meetings-calendar";
 
+type Layout = "Agenda" | "Calendar";
 type View = "Upcoming" | "Past";
 
 type DayGroup = {
@@ -17,6 +19,7 @@ type DayGroup = {
 
 export function MeetingsAgenda({ meetings }: { meetings: Meeting[] }) {
   const [selected, setSelected] = useState<Meeting | null>(null);
+  const [layout, setLayout] = useState<Layout>("Agenda");
   const [view, setView] = useState<View>("Upcoming");
   // Snapshot "now" once so server and client render the same groupings.
   const [now] = useState(() => new Date());
@@ -61,7 +64,10 @@ export function MeetingsAgenda({ meetings }: { meetings: Meeting[] }) {
   );
 
   // The very first upcoming meeting gets a "next" accent rail.
-  const nextId = view === "Upcoming" ? groups[0]?.meetings[0]?.id : undefined;
+  const nextId =
+    layout === "Agenda" && view === "Upcoming"
+      ? groups[0]?.meetings[0]?.id
+      : undefined;
 
   return (
     <section className="mx-auto max-w-[980px] px-14 pb-20 pt-12">
@@ -86,28 +92,29 @@ export function MeetingsAgenda({ meetings }: { meetings: Meeting[] }) {
           </p>
         </div>
 
-        <div className="relative flex rounded-[11px] border border-line bg-tile p-[3px]">
-          {(["Upcoming", "Past"] as View[]).map((v) => {
-            const on = view === v;
-            return (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setView(v)}
-                className="relative rounded-lg px-4 py-[7px] text-[13px] font-semibold transition-colors"
-                style={{ color: on ? "#231F17" : "#9B927F" }}
-              >
-                {on && (
-                  <span className="absolute inset-0 rounded-lg bg-panel shadow-[0_1px_2px_rgba(38,34,25,0.07)]" />
-                )}
-                <span className="relative">{v}</span>
-              </button>
-            );
-          })}
+        <div className="relative flex flex-col items-end gap-2.5">
+          <Segmented
+            value={layout}
+            onChange={setLayout}
+            options={["Agenda", "Calendar"] as const}
+          />
+          {layout === "Agenda" && (
+            <Segmented
+              value={view}
+              onChange={setView}
+              options={["Upcoming", "Past"] as const}
+            />
+          )}
         </div>
       </header>
 
-      {groups.length === 0 ? (
+      {layout === "Calendar" ? (
+        <MeetingsCalendar
+          meetings={meetings}
+          now={now}
+          onSelect={setSelected}
+        />
+      ) : groups.length === 0 ? (
         <div className="px-5 py-20 text-center text-quiet">
           <div className="mb-2 font-serif text-[21px] text-muted">
             Nothing on the calendar
@@ -144,5 +151,38 @@ export function MeetingsAgenda({ meetings }: { meetings: Meeting[] }) {
 
       <MeetingDrawer meeting={selected} onClose={() => setSelected(null)} />
     </section>
+  );
+}
+
+/** A small pill-style segmented control matching the MEETU editorial style. */
+function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  options: readonly T[];
+}) {
+  return (
+    <div className="relative flex rounded-[11px] border border-line bg-tile p-[3px]">
+      {options.map((opt) => {
+        const on = value === opt;
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onChange(opt)}
+            className="relative rounded-lg px-4 py-[7px] text-[13px] font-semibold transition-colors"
+            style={{ color: on ? "#231F17" : "#9B927F" }}
+          >
+            {on && (
+              <span className="absolute inset-0 rounded-lg bg-panel shadow-[0_1px_2px_rgba(38,34,25,0.07)]" />
+            )}
+            <span className="relative">{opt}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
