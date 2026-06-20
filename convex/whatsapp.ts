@@ -101,6 +101,10 @@ async function receiveMessageForAdvisor(
   const timestamp = new Date().toISOString();
   const participantPhone =
     args.direction === "Inbound" ? args.fromPhone : args.toPhone;
+  const participantNamePatch =
+    args.direction === "Inbound" && args.senderName
+      ? { participantName: args.senderName }
+      : {};
   const conversation = await ctx.db
     .query("whatsappConversations")
     .withIndex("by_advisor_participant", (q) =>
@@ -119,7 +123,7 @@ async function receiveMessageForAdvisor(
       analysisRequestedAt: timestamp,
       createdAt: timestamp,
       updatedAt: timestamp,
-      ...(args.senderName ? { participantName: args.senderName } : {}),
+      ...participantNamePatch,
     }));
 
   await ctx.db.patch(conversationId, {
@@ -128,7 +132,7 @@ async function receiveMessageForAdvisor(
     analysisRequestedAt: timestamp,
     analysisError: "",
     updatedAt: timestamp,
-    ...(args.senderName ? { participantName: args.senderName } : {}),
+    ...participantNamePatch,
   });
 
   const messageId = await ctx.db.insert("whatsappMessages", {

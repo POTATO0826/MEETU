@@ -8,6 +8,7 @@ const leadStatus = v.union(
   v.literal("Contacted"),
   v.literal("Qualified"),
   v.literal("Proposal"),
+  v.literal("Converted"),
 );
 
 const meetingMode = v.union(
@@ -30,6 +31,21 @@ const serviceInterest = v.union(
   v.literal("Estate Planning"),
   v.literal("Tax Strategy"),
   v.literal("College Savings"),
+);
+
+const clientActivityCategory = v.union(
+  v.literal("Travel"),
+  v.literal("Family"),
+  v.literal("Work"),
+  v.literal("Health"),
+  v.literal("Milestone"),
+  v.literal("Availability"),
+);
+
+const clientActivityPriority = v.union(
+  v.literal("Upcoming"),
+  v.literal("Recent"),
+  v.literal("Watch"),
 );
 
 const leadProfilePatch = v.object({
@@ -93,14 +109,135 @@ export const claimConversationAnalysis = internalMutation({
         await ctx.db.patch(args.conversationId, { leadId: lead._id });
       }
     }
+    const clientId = conversation.clientId ?? lead?.clientId;
+    const client = clientId ? await ctx.db.get(clientId) : null;
+    if (client && !conversation.clientId) {
+      await ctx.db.patch(args.conversationId, { clientId: client._id });
+    }
 
     return {
       conversation,
       lead,
+      client,
       recentMessages: messages
         .sort((a, b) => a.receivedAt.localeCompare(b.receivedAt))
         .slice(-30),
       pendingMessageIds: pendingMessages.map((message) => message._id),
+    };
+  },
+});
+
+export const convertLeadToClient = internalMutation({
+  args: {
+    leadId: v.id("leads"),
+    confidence: v.number(),
+    rationale: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (args.confidence < 0.9) {
+      return { converted: false, reason: "confidence_too_low" };
+    }
+
+    const lead = await ctx.db.get(args.leadId);
+    if (!lead) throw new Error("Lead not found");
+
+    let client = lead.clientId ? await ctx.db.get(lead.clientId) : null;
+    if (!client) {
+      client = await ctx.db
+        .query("clients")
+        .withIndex("by_phone", (q) => q.eq("phone", lead.phone))
+        .unique();
+    }
+
+    const now = new Date().toISOString();
+    const today = now.slice(0, 10);
+    const advisor = lead.advisorId ? await ctx.db.get(lead.advisorId) : null;
+    const clientId =
+      client?._id ??
+      (await ctx.db.insert("clients", {
+        externalId: `lead-${lead._id}`,
+        slug: `${slugify(lead.name)}-${lead._id.slice(-6)}`,
+        name: lead.name,
+        age: lead.age,
+        occupation: lead.occupation,
+        location: lead.location,
+        email: lead.email,
+        phone: lead.phone,
+        status: "Onboarding",
+        clientSince: today,
+        advisorName: advisor?.name ?? "MVP Advisor",
+        advisorId: lead.advisorId,
+        cadence: "To be determined",
+        nextReview: addDays(today, 90),
+        dependents: [],
+        aum: lead.estimatedPortfolio,
+        netWorth: lead.estimatedPortfolio,
+        riskTolerance: "Moderate",
+        timeHorizon: "To be determined",
+        accounts: [],
+        allocation: [],
+        goals: lead.serviceInterest
+          ? [
+              {
+                name: lead.serviceInterest,
+                detail: lead.whyApproached || lead.situationTeaser,
+              },
+            ]
+          : [],
+        serviceTopics: [lead.serviceInterest],
+        description: lead.situationTeaser,
+        situation: lead.situation,
+        whyApproached: lead.whyApproached,
+        notes: lead.notes,
+        createdAt: now,
+        updatedAt: now,
+      }));
+
+    const timelineEvent = {
+      date: today,
+      label: "Converted to client profile",
+    };
+    const hasConversionEvent = lead.timeline.some(
+      (event) =>
+        event.date === timelineEvent.date && event.label === timelineEvent.label,
+    );
+    await ctx.db.patch(lead._id, {
+      clientId,
+      status: "Converted",
+      timeline: hasConversionEvent
+        ? lead.timeline
+        : [...lead.timeline, timelineEvent],
+      updatedAt: now,
+    });
+
+    const conversations = await ctx.db
+      .query("whatsappConversations")
+      .withIndex("by_lead", (q) => q.eq("leadId", lead._id))
+      .take(100);
+    for (const conversation of conversations) {
+      await ctx.db.patch(conversation._id, { clientId, updatedAt: now });
+    }
+
+    const meetings = await ctx.db
+      .query("meetings")
+      .withIndex("by_lead", (q) => q.eq("leadId", lead._id))
+      .take(100);
+    for (const meeting of meetings) {
+      await ctx.db.patch(meeting._id, { clientId, updatedAt: now });
+    }
+
+    const tasks = await ctx.db
+      .query("advisorTasks")
+      .withIndex("by_lead", (q) => q.eq("leadId", lead._id))
+      .take(100);
+    for (const task of tasks) {
+      await ctx.db.patch(task._id, { clientId, updatedAt: now });
+    }
+
+    return {
+      converted: true,
+      clientId,
+      action: client ? "linked_existing_client" : "created_client",
     };
   },
 });
@@ -315,6 +452,71 @@ export const upsertMeetingFromConversation = internalMutation({
   },
   handler: async (ctx, args) => {
     return await createOrUpdateMeeting(ctx, args);
+  },
+});
+
+export const storeClientActivity = internalMutation({
+  args: {
+    conversationId: v.id("whatsappConversations"),
+    clientId: v.id("clients"),
+    messageId: v.optional(v.id("whatsappMessages")),
+    category: clientActivityCategory,
+    activity: v.string(),
+    timeframe: v.string(),
+    mentionedAt: v.string(),
+    suggestedTouchpoint: v.string(),
+    priority: clientActivityPriority,
+    confidence: v.number(),
+    rationale: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (args.confidence < 0.75) {
+      return { stored: false, reason: "confidence_too_low" };
+    }
+
+    const client = await ctx.db.get(args.clientId);
+    if (!client) throw new Error("Client not found");
+
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation) throw new Error("Conversation not found");
+
+    const existing = await ctx.db
+      .query("clientActivities")
+      .withIndex("by_client", (q) => q.eq("clientId", args.clientId))
+      .take(50);
+    const duplicate = existing.find(
+      (activity) =>
+        activity.category === args.category &&
+        normalizeText(activity.activity) === normalizeText(args.activity) &&
+        normalizeText(activity.timeframe) === normalizeText(args.timeframe),
+    );
+    if (duplicate) {
+      return {
+        stored: false,
+        reason: "duplicate_activity",
+        activityId: duplicate._id,
+      };
+    }
+
+    const now = new Date().toISOString();
+    const activityId = await ctx.db.insert("clientActivities", {
+      clientId: args.clientId,
+      conversationId: args.conversationId,
+      messageId: args.messageId,
+      category: args.category,
+      activity: args.activity,
+      timeframe: args.timeframe,
+      mentionedAt: args.mentionedAt,
+      suggestedTouchpoint: args.suggestedTouchpoint,
+      source: "WhatsApp",
+      priority: args.priority,
+      confidence: args.confidence,
+      rationale: args.rationale,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return { stored: true, activityId };
   },
 });
 
@@ -534,4 +736,22 @@ function compactPatch<T extends Record<string, unknown>>(patch: T) {
   return Object.fromEntries(
     Object.entries(patch).filter(([, value]) => value !== undefined),
   ) as Partial<Doc<"leads">>;
+}
+
+function normalizeText(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function slugify(value: string) {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "client";
+}
+
+function addDays(isoDate: string, days: number) {
+  const date = new Date(`${isoDate}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }

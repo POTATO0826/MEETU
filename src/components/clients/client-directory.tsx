@@ -6,7 +6,13 @@ import { formatCurrency } from "@/lib/format";
 import { Search } from "@/components/icons";
 import { ClientCard } from "./client-card";
 
-export function ClientDirectory({ clients }: { clients: Client[] }) {
+export function ClientDirectory({
+  clients,
+  isLoading = false,
+}: {
+  clients: Client[];
+  isLoading?: boolean;
+}) {
   const [query, setQuery] = useState("");
 
   const totalAum = useMemo(
@@ -83,7 +89,16 @@ export function ClientDirectory({ clients }: { clients: Client[] }) {
         </div>
       </div>
 
-      {visible.length === 0 ? (
+      {isLoading ? (
+        <div className="px-5 py-20 text-center text-quiet">
+          <div className="mb-2 font-serif text-[21px] text-muted">
+            Loading clients
+          </div>
+          <div className="text-sm">
+            Syncing the latest client profiles from Convex.
+          </div>
+        </div>
+      ) : visible.length === 0 ? (
         <div className="px-5 py-20 text-center text-quiet">
           <div className="mb-2 font-serif text-[21px] text-muted">
             No matching clients

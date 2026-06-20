@@ -1,4 +1,9 @@
-export type LeadStatus = "New" | "Contacted" | "Qualified" | "Proposal";
+export type LeadStatus =
+  | "New"
+  | "Contacted"
+  | "Qualified"
+  | "Proposal"
+  | "Converted";
 
 export type ServiceInterest =
   | "Retirement Planning"

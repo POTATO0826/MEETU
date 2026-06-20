@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
+import { useMutation } from "convex/react";
 import type { Lead } from "@/lib/leads";
-import { formatCurrencyFull, formatDate } from "@/lib/format";
+import { formatDate, formatLeadPortfolioFull } from "@/lib/format";
 import { Drawer, CloseButton, DrawerLabel } from "@/components/drawer";
 import { StatusPill, Avatar } from "@/components/ui";
 import { Mail, Phone } from "@/components/icons";
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 export function LeadDrawer({
   lead,
@@ -26,8 +30,26 @@ export function LeadDrawer({
 }
 
 function Inner({ lead, onClose }: { lead: Lead; onClose: () => void }) {
+  const convertLeadToClient = useMutation(api.crm.convertLeadToClient);
+  const [isConverting, setIsConverting] = useState(false);
+  const [conversionError, setConversionError] = useState<string | null>(null);
   const tel = lead.phone.replace(/[^\d+]/g, "");
   const timeline = [...lead.timeline].reverse();
+
+  const handleConvert = async () => {
+    setIsConverting(true);
+    setConversionError(null);
+    try {
+      await convertLeadToClient({ leadId: lead.id as Id<"leads"> });
+      onClose();
+    } catch (error) {
+      setConversionError(
+        error instanceof Error ? error.message : "Conversion failed",
+      );
+    } finally {
+      setIsConverting(false);
+    }
+  };
 
   return (
     <>
@@ -61,6 +83,23 @@ function Inner({ lead, onClose }: { lead: Lead; onClose: () => void }) {
           </span>
           <span className="text-xs text-quiet">via {lead.source}</span>
         </div>
+        {lead.status !== "Converted" && (
+          <div className="relative mt-5">
+            <button
+              type="button"
+              onClick={handleConvert}
+              disabled={isConverting}
+              className="inline-flex w-full items-center justify-center rounded-[10px] border border-[#C9C0AC] bg-[#2F405F] px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#263650] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isConverting ? "Converting..." : "Convert to Client"}
+            </button>
+            {conversionError && (
+              <p className="mb-0 mt-2 text-xs font-semibold text-[#A65045]">
+                {conversionError}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-6 px-7 py-6">
@@ -70,7 +109,7 @@ function Inner({ lead, onClose }: { lead: Lead; onClose: () => void }) {
               Est. portfolio
             </span>
             <span className="font-serif text-[26px] font-medium tabular-nums text-[#231F17]">
-              {formatCurrencyFull(lead.estimatedPortfolio)}
+              {formatLeadPortfolioFull(lead.estimatedPortfolio)}
             </span>
           </div>
           <div className="flex flex-1 flex-col gap-0.5 border-l border-line-soft pl-[18px]">

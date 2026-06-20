@@ -13,6 +13,16 @@ export function formatCurrencyFull(amount: number): string {
   return "$" + Math.round(amount).toLocaleString("en-US");
 }
 
+/** Show unknown lead portfolio sizes as text instead of "$0". */
+export function formatLeadPortfolio(amount: number): string {
+  return amount > 0 ? formatCurrency(amount) : "Not known";
+}
+
+/** Show unknown lead portfolio sizes as text instead of "$0". */
+export function formatLeadPortfolioFull(amount: number): string {
+  return amount > 0 ? formatCurrencyFull(amount) : "Not known";
+}
+
 /** Format an ISO date as e.g. "Jun 16, 2026". */
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {

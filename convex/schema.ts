@@ -6,6 +6,7 @@ const leadStatus = v.union(
   v.literal("Contacted"),
   v.literal("Qualified"),
   v.literal("Proposal"),
+  v.literal("Converted"),
 );
 
 const serviceInterest = v.union(
@@ -68,6 +69,21 @@ const meetingStatus = v.union(
   v.literal("Tentative"),
   v.literal("Completed"),
   v.literal("Canceled"),
+);
+
+const clientActivityCategory = v.union(
+  v.literal("Travel"),
+  v.literal("Family"),
+  v.literal("Work"),
+  v.literal("Health"),
+  v.literal("Milestone"),
+  v.literal("Availability"),
+);
+
+const clientActivityPriority = v.union(
+  v.literal("Upcoming"),
+  v.literal("Recent"),
+  v.literal("Watch"),
 );
 
 const conversationAnalysisStatus = v.union(
@@ -211,6 +227,31 @@ export default defineSchema({
     .index("by_lead", ["leadId"])
     .index("by_advisor", ["advisorId"]),
 
+  clientActivities: defineTable({
+    clientId: v.id("clients"),
+    conversationId: v.optional(v.id("whatsappConversations")),
+    messageId: v.optional(v.id("whatsappMessages")),
+    category: clientActivityCategory,
+    activity: v.string(),
+    timeframe: v.string(),
+    mentionedAt: isoDate,
+    suggestedTouchpoint: v.string(),
+    source: v.union(
+      v.literal("WhatsApp"),
+      v.literal("Manual"),
+      v.literal("Other"),
+    ),
+    priority: clientActivityPriority,
+    confidence: v.number(),
+    rationale: v.optional(v.string()),
+    createdAt: isoDateTime,
+    updatedAt: isoDateTime,
+  })
+    .index("by_client", ["clientId"])
+    .index("by_priority", ["priority"])
+    .index("by_mentioned_at", ["mentionedAt"])
+    .index("by_conversation", ["conversationId"]),
+
   whatsappConversations: defineTable({
     advisorId: v.id("advisors"),
     participantPhone: v.string(),
@@ -328,6 +369,20 @@ export default defineSchema({
     .index("by_conversation", ["conversationId"])
     .index("by_client", ["clientId"])
     .index("by_lead", ["leadId"]),
+
+  agentEvents: defineTable({
+    type: v.union(v.literal("ManualLeadConversion")),
+    leadId: v.optional(v.id("leads")),
+    clientId: v.optional(v.id("clients")),
+    conversationId: v.optional(v.id("whatsappConversations")),
+    summary: v.string(),
+    metadata: v.any(),
+    createdAt: isoDateTime,
+  })
+    .index("by_lead", ["leadId"])
+    .index("by_client", ["clientId"])
+    .index("by_conversation", ["conversationId"])
+    .index("by_type", ["type"]),
 
   advisorTasks: defineTable({
     advisorId: v.id("advisors"),

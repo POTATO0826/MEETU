@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getClient } from "@/lib/clients";
-import { meetings } from "@/lib/meetings";
+import { use } from "react";
+import { useMemo } from "react";
+import { useQuery } from "convex/react";
+import { mapClient } from "@/lib/clients";
 import {
   formatCurrency,
   formatCurrencyFull,
@@ -12,6 +15,7 @@ import {
 import { AllocationBar } from "@/components/clients/allocation-bar";
 import { Avatar, StatusPill } from "@/components/ui";
 import { ArrowLeft, Mail, Phone } from "@/components/icons";
+import { api } from "../../../../../convex/_generated/api";
 
 type ClientProfilePageProps = {
   params: Promise<{
@@ -19,14 +23,65 @@ type ClientProfilePageProps = {
   }>;
 };
 
-export default async function ClientProfilePage(props: ClientProfilePageProps) {
-  const { slug } = await props.params;
-  const client = getClient(slug);
-  if (!client) notFound();
+export default function ClientProfilePage(props: ClientProfilePageProps) {
+  const { slug } = use(props.params);
+  const convexClient = useQuery(api.crm.getClientBySlug, { slug });
+  const convexMeetings = useQuery(api.crm.listMeetings, {});
+  const client = useMemo(
+    () => (convexClient ? mapClient(convexClient) : null),
+    [convexClient],
+  );
 
-  const clientMeetings = meetings
-    .filter((m) => m.attendee === client.name)
-    .sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime());
+  const clientMeetings = useMemo(() => {
+    if (!client) return [];
+    return (convexMeetings ?? [])
+      .filter((meeting) => meeting.clientId === client.id)
+      .sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime());
+  }, [client, convexMeetings]);
+
+  if (convexClient === undefined) {
+    return (
+      <section className="mx-auto max-w-[1080px] px-14 pb-24 pt-9">
+        <Link
+          href="/clients"
+          className="mb-[22px] inline-flex items-center gap-2 py-1.5 text-[13px] font-semibold text-faint transition-colors hover:text-muted"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to clients
+        </Link>
+        <div className="px-5 py-20 text-center text-quiet">
+          <div className="mb-2 font-serif text-[21px] text-muted">
+            Loading client
+          </div>
+          <div className="text-sm">
+            Syncing the latest client profile from Convex.
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!client) {
+    return (
+      <section className="mx-auto max-w-[1080px] px-14 pb-24 pt-9">
+        <Link
+          href="/clients"
+          className="mb-[22px] inline-flex items-center gap-2 py-1.5 text-[13px] font-semibold text-faint transition-colors hover:text-muted"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to clients
+        </Link>
+        <div className="px-5 py-20 text-center text-quiet">
+          <div className="mb-2 font-serif text-[21px] text-muted">
+            Client not found
+          </div>
+          <div className="text-sm">
+            This profile is not available in Convex.
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   const tel = client.phone.replace(/[^\d+]/g, "");
 
@@ -206,7 +261,7 @@ export default async function ClientProfilePage(props: ClientProfilePageProps) {
                 const tone = statusMeta(m.status);
                 return (
                   <Link
-                    key={m.id}
+                    key={m._id}
                     href="/meetings"
                     className="flex items-center gap-[11px] border-t border-line-soft py-[11px] first:border-t-0"
                   >

@@ -1,4 +1,5 @@
 import type { ServiceInterest } from "./leads";
+import type { Doc } from "../../convex/_generated/dataModel";
 
 export type RiskTolerance =
   | "Conservative"
@@ -426,4 +427,36 @@ export const clients: Client[] = [
 
 export function getClient(slug: string): Client | undefined {
   return clients.find((c) => c.slug === slug);
+}
+
+export function mapClient(client: Doc<"clients">): Client {
+  return {
+    id: client._id,
+    slug: client.slug,
+    name: client.name,
+    age: client.age,
+    occupation: client.occupation,
+    location: client.location,
+    email: client.email,
+    phone: client.phone,
+    status: client.status,
+    clientSince: client.clientSince,
+    advisor: client.advisorName,
+    cadence: client.cadence,
+    nextReview: client.nextReview,
+    spouse: client.spouse,
+    dependents: client.dependents,
+    aum: client.aum,
+    netWorth: client.netWorth,
+    riskTolerance: client.riskTolerance,
+    timeHorizon: client.timeHorizon,
+    accounts: client.accounts,
+    allocation: client.allocation,
+    goals: client.goals,
+    serviceTopics: client.serviceTopics,
+    description: client.description,
+    situation: client.situation,
+    whyApproached: client.whyApproached,
+    notes: client.notes,
+  };
 }
