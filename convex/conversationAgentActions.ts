@@ -512,7 +512,7 @@ async function addMemory(
   try {
     const mem0 = new MemoryClient({ apiKey });
     await mem0.add([{ role: "user", content: fact }], {
-      filters: { user_id: memoryUserId(phone) },
+      userId: memoryUserId(phone),
       metadata,
     });
   } catch (error) {

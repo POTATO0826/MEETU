@@ -1,6 +1,14 @@
 import { v } from "convex/values";
+import { makeFunctionReference } from "convex/server";
 import type { Doc } from "./_generated/dataModel";
-import { internalMutation, internalQuery } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import { internalMutation, internalQuery, mutation } from "./_generated/server";
+
+const analyzeConversation = makeFunctionReference<
+  "action",
+  { conversationId: Id<"whatsappConversations"> },
+  null
+>("conversationAgentActions:analyzeConversation");
 
 const leadStatus = v.union(
   v.literal("New"),
@@ -98,6 +106,48 @@ export const findLeadByPhone = internalQuery({
       .query("leads")
       .withIndex("by_phone", (q) => q.eq("phone", args.phone))
       .unique();
+  },
+});
+
+export const retryFailedConversationAnalysis = mutation({
+  args: { conversationId: v.id("whatsappConversations") },
+  handler: async (ctx, args) => {
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation) throw new Error("Conversation not found");
+    if (conversation.analysisStatus === "Running") {
+      return { queued: false, reason: "analysis_running" };
+    }
+
+    const messages = await ctx.db
+      .query("whatsappMessages")
+      .withIndex("by_conversation", (q) =>
+        q.eq("conversationId", args.conversationId),
+      )
+      .take(80);
+    const retryableMessages = messages.filter(
+      (message) =>
+        message.analysisStatus === "Failed" ||
+        message.analysisStatus === "Processing",
+    );
+
+    if (retryableMessages.length === 0) {
+      return { queued: false, reason: "no_failed_messages" };
+    }
+
+    const now = new Date().toISOString();
+    for (const message of retryableMessages) {
+      await ctx.db.patch(message._id, { analysisStatus: "Pending" });
+    }
+    await ctx.db.patch(args.conversationId, {
+      analysisStatus: "Queued",
+      analysisRequestedAt: now,
+      analysisError: "",
+      updatedAt: now,
+    });
+    await ctx.scheduler.runAfter(0, analyzeConversation, {
+      conversationId: args.conversationId,
+    });
+    return { queued: true, messageCount: retryableMessages.length };
   },
 });
 
