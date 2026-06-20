@@ -6,6 +6,7 @@ import type { MutationCtx } from "./_generated/server";
 
 type ReceiveMessageArgs = {
   providerMessageId: string;
+  direction: "Inbound" | "Outbound";
   fromPhone: string;
   toPhone: string;
   senderName?: string;
@@ -34,6 +35,7 @@ export const receiveMessage = mutation({
   args: {
     advisorId: v.id("advisors"),
     providerMessageId: v.string(),
+    direction: v.union(v.literal("Inbound"), v.literal("Outbound")),
     fromPhone: v.string(),
     toPhone: v.string(),
     senderName: v.optional(v.string()),
@@ -49,6 +51,7 @@ export const receiveMessage = mutation({
 export const receiveMessageForMvpAdvisor = mutation({
   args: {
     providerMessageId: v.string(),
+    direction: v.union(v.literal("Inbound"), v.literal("Outbound")),
     fromPhone: v.string(),
     toPhone: v.string(),
     senderName: v.optional(v.string()),
@@ -96,10 +99,12 @@ async function receiveMessageForAdvisor(
   }
 
   const timestamp = new Date().toISOString();
+  const participantPhone =
+    args.direction === "Inbound" ? args.fromPhone : args.toPhone;
   const conversation = await ctx.db
     .query("whatsappConversations")
     .withIndex("by_advisor_participant", (q) =>
-      q.eq("advisorId", advisorId).eq("participantPhone", args.fromPhone),
+      q.eq("advisorId", advisorId).eq("participantPhone", participantPhone),
     )
     .unique();
 
@@ -107,7 +112,7 @@ async function receiveMessageForAdvisor(
     conversation?._id ??
     (await ctx.db.insert("whatsappConversations", {
       advisorId,
-      participantPhone: args.fromPhone,
+      participantPhone,
       status: "Open",
       lastMessageAt: args.receivedAt,
       analysisStatus: "Queued",
@@ -130,7 +135,7 @@ async function receiveMessageForAdvisor(
     conversationId,
     advisorId,
     providerMessageId: args.providerMessageId,
-    direction: "Inbound",
+    direction: args.direction,
     fromPhone: args.fromPhone,
     toPhone: args.toPhone,
     body: args.body,

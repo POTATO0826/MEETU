@@ -85,13 +85,12 @@ async function start() {
     log.info({ count: messages.length, type }, "Baileys messages upsert");
 
     for (const message of messages) {
-      await storeInboundMessage(message);
+      await storeMessage(message);
     }
   });
 }
 
-async function storeInboundMessage(message: WAMessage) {
-  if (message.key.fromMe) return;
+async function storeMessage(message: WAMessage) {
   if (!message.message) return;
 
   const remoteJid = message.key.remoteJid;
@@ -112,33 +111,41 @@ async function storeInboundMessage(message: WAMessage) {
     return;
   }
 
+  const direction = message.key.fromMe ? "Outbound" : "Inbound";
   const providerMessageId =
     message.key.id ?? `${remoteJid}-${message.messageTimestamp?.toString()}`;
-  const fromPhone = jidToPhone(preferPhoneJid(message.key.remoteJidAlt, remoteJid));
-  const toPhone =
+  const participantPhone = jidToPhone(preferPhoneJid(message.key.remoteJidAlt, remoteJid));
+  const devicePhone =
     message.key.participant || message.key.participantAlt
       ? jidToPhone(preferPhoneJid(message.key.participantAlt, message.key.participant))
       : "baileys-device";
+  const fromPhone = direction === "Inbound" ? participantPhone : devicePhone;
+  const toPhone = direction === "Inbound" ? devicePhone : participantPhone;
   const receivedAt = timestampToIso(message.messageTimestamp);
 
   log.info(
     {
       providerMessageId,
+      direction,
       fromPhone: maskPhone(fromPhone),
+      toPhone: maskPhone(toPhone),
       bodyLength: body.length,
       receivedAt,
     },
-    "Storing inbound Baileys message",
+    "Storing Baileys message",
   );
-  console.info(plainLogPrefix, "storing inbound message", {
+  console.info(plainLogPrefix, "storing message", {
     providerMessageId,
+    direction,
     fromPhone: maskPhone(fromPhone),
+    toPhone: maskPhone(toPhone),
     bodyLength: body.length,
     receivedAt,
   });
 
   const payload = {
     providerMessageId,
+    direction,
     fromPhone,
     toPhone,
     body,
@@ -174,9 +181,10 @@ async function storeInboundMessage(message: WAMessage) {
 
   const result = (await response.json()) as unknown;
 
-  log.info({ providerMessageId, result }, "Stored inbound Baileys message");
-  console.info(plainLogPrefix, "stored inbound message", {
+  log.info({ providerMessageId, direction, result }, "Stored Baileys message");
+  console.info(plainLogPrefix, "stored message", {
     providerMessageId,
+    direction,
     result,
   });
 }
