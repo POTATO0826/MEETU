@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from "react";
 import type { Meeting } from "@/lib/meetings";
-import { dayKey, formatTime, statusMeta } from "@/lib/format";
+import {
+  dayKey,
+  formatTime,
+  meetingDisplayStatus,
+  statusMeta,
+} from "@/lib/format";
 import { ArrowLeft, ArrowRight } from "@/components/icons";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
@@ -80,8 +85,6 @@ export function MeetingsCalendar({
 
   const shiftMonth = (delta: number) =>
     setCursor((c) => new Date(c.getFullYear(), c.getMonth() + delta, 1));
-  const goToday = () =>
-    setCursor(new Date(now.getFullYear(), now.getMonth(), 1));
 
   return (
     <div>
@@ -100,13 +103,6 @@ export function MeetingsCalendar({
           </button>
           <button
             type="button"
-            onClick={goToday}
-            className="rounded-[9px] border border-line bg-tile px-3 py-[7px] text-[13px] font-semibold text-muted transition-colors hover:bg-panel"
-          >
-            Today
-          </button>
-          <button
-            type="button"
             aria-label="Next month"
             onClick={() => shiftMonth(1)}
             className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-line bg-tile text-muted transition-colors hover:bg-panel"
@@ -116,7 +112,7 @@ export function MeetingsCalendar({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[15px] border border-hair bg-panel shadow-[0_1px_2px_rgba(38,34,25,0.03),0_14px_30px_-24px_rgba(38,34,25,0.22)]">
+      <div className="glass-card overflow-hidden rounded-[15px] border">
         <div className="grid grid-cols-7 border-b border-line-soft">
           {WEEKDAYS.map((d) => (
             <div
@@ -135,6 +131,7 @@ export function MeetingsCalendar({
               cell={cell}
               noRight={(i + 1) % 7 === 0}
               noBottom={i >= 35}
+              now={now}
               onSelect={onSelect}
             />
           ))}
@@ -148,11 +145,13 @@ function DayCell({
   cell,
   noRight,
   noBottom,
+  now,
   onSelect,
 }: {
   cell: Cell;
   noRight: boolean;
   noBottom: boolean;
+  now: Date;
   onSelect: (meeting: Meeting) => void;
 }) {
   const shown = cell.meetings.slice(0, MAX_CHIPS);
@@ -182,7 +181,9 @@ function DayCell({
 
       <div className="flex flex-col gap-1">
         {shown.map((m) => {
-          const tone = statusMeta(m.status);
+          const tone = statusMeta(
+            meetingDisplayStatus(m.status, m.start, now)
+          );
           return (
             <button
               key={m.id}

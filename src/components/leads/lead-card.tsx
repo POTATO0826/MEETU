@@ -13,7 +13,7 @@ export function LeadCard({
     <button
       type="button"
       onClick={() => onSelect(lead)}
-      className="flex flex-col gap-3.5 rounded-2xl border border-hair bg-panel p-5 text-left shadow-[0_1px_2px_rgba(38,34,25,0.03),0_14px_30px_-26px_rgba(38,34,25,0.25)] transition-all hover:-translate-y-0.5 hover:border-[#CFC7B5]"
+      className="glass-card flex flex-col gap-3.5 rounded-2xl border p-5 text-left transition-all hover:-translate-y-0.5"
     >
       <div className="flex items-start gap-3.5">
         <Avatar name={lead.name} size={44} />

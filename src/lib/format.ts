@@ -102,7 +102,7 @@ export type StatusMeta = {
 const TONES = {
   blue: { fg: "#34548C", bg: "#E7EBF3" },
   green: { fg: "#566F4F", bg: "#E8EDE4" },
-  clay: { fg: "#946431", bg: "#F1E9DB" },
+  clay: { fg: "#3F2505", bg: "#EBD8B8" },
   rust: { fg: "#9C3B33", bg: "#F2E4E0" },
   grey: { fg: "#7A7264", bg: "#ECE7DD" },
 } as const;
@@ -127,6 +127,17 @@ const STATUS_TONE: Record<string, keyof typeof TONES> = {
 export function statusMeta(value: string): StatusMeta {
   const tone = TONES[STATUS_TONE[value] ?? "grey"];
   return { fg: tone.fg, bg: tone.bg, label: value };
+}
+
+/** Treat confirmed meetings whose start time has passed as completed. */
+export function meetingDisplayStatus(
+  status: string,
+  start: string,
+  now: Date
+): string {
+  return status === "Confirmed" && new Date(start).getTime() < now.getTime()
+    ? "Completed"
+    : status;
 }
 
 /** Deterministic avatar gradient (CSS) based on the name. */

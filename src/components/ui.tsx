@@ -12,7 +12,10 @@ export function StatusPill({
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-2 pr-2.5 ${className}`}
-      style={{ background: s.bg }}
+      style={{
+        background: s.bg,
+        boxShadow: `inset 0 0 0 1px ${s.fg}1F`,
+      }}
     >
       <span
         className="h-1.5 w-1.5 rounded-full"

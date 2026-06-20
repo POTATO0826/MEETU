@@ -6,6 +6,7 @@ import { dayKey, formatDayLabel, formatLongDate } from "@/lib/format";
 import { MeetingRow } from "./meeting-row";
 import { MeetingDrawer } from "./meeting-drawer";
 import { MeetingsCalendar } from "./meetings-calendar";
+import { AgendaIcon, CalendarIcon } from "@/components/icons";
 
 type Layout = "Agenda" | "Calendar";
 type View = "Upcoming" | "Past";
@@ -62,6 +63,7 @@ export function MeetingsAgenda({ meetings }: { meetings: Meeting[] }) {
         .length,
     [meetings, now]
   );
+  const pastCount = meetings.length - upcomingCount;
 
   // The very first upcoming meeting gets a "next" accent rail.
   const nextId =
@@ -92,20 +94,7 @@ export function MeetingsAgenda({ meetings }: { meetings: Meeting[] }) {
           </p>
         </div>
 
-        <div className="relative flex flex-col items-end gap-2.5">
-          <Segmented
-            value={layout}
-            onChange={setLayout}
-            options={["Agenda", "Calendar"] as const}
-          />
-          {layout === "Agenda" && (
-            <Segmented
-              value={view}
-              onChange={setView}
-              options={["Upcoming", "Past"] as const}
-            />
-          )}
-        </div>
+        <LayoutSwitch value={layout} onChange={setLayout} />
       </header>
 
       {layout === "Calendar" ? (
@@ -114,72 +103,153 @@ export function MeetingsAgenda({ meetings }: { meetings: Meeting[] }) {
           now={now}
           onSelect={setSelected}
         />
-      ) : groups.length === 0 ? (
-        <div className="px-5 py-20 text-center text-quiet">
-          <div className="mb-2 font-serif text-[21px] text-muted">
-            Nothing on the calendar
-          </div>
-          <div className="text-sm">No {view.toLowerCase()} meetings to show.</div>
-        </div>
       ) : (
-        <div className="flex flex-col gap-[26px]">
-          {groups.map((group) => (
-            <section key={group.key}>
-              <div className="mb-3 flex items-baseline gap-3 pl-0.5">
-                <h2 className="m-0 font-serif text-[19px] font-medium text-ink-soft">
-                  {group.label}
-                </h2>
-                <span className="text-xs tracking-[0.04em] text-dim">
-                  {group.dateLine}
-                </span>
+        <>
+          <AgendaTabs
+            value={view}
+            onChange={setView}
+            upcomingCount={upcomingCount}
+            pastCount={pastCount}
+          />
+
+          {groups.length === 0 ? (
+            <div className="px-5 py-20 text-center text-quiet">
+              <div className="mb-2 font-serif text-[21px] text-muted">
+                Nothing on the calendar
               </div>
-              <div className="overflow-hidden rounded-[15px] border border-hair bg-panel shadow-[0_1px_2px_rgba(38,34,25,0.03),0_14px_30px_-24px_rgba(38,34,25,0.22)]">
-                {group.meetings.map((meeting, i) => (
-                  <MeetingRow
-                    key={meeting.id}
-                    meeting={meeting}
-                    first={i === 0}
-                    isNext={meeting.id === nextId}
-                    onSelect={setSelected}
-                  />
-                ))}
+              <div className="text-sm">
+                No {view.toLowerCase()} meetings to show.
               </div>
-            </section>
-          ))}
-        </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-[26px]">
+              {groups.map((group) => (
+                <section key={group.key}>
+                  <div className="mb-3 flex items-baseline gap-3 pl-0.5">
+                    <h2 className="m-0 font-serif text-[19px] font-medium text-ink-soft">
+                      {group.label}
+                    </h2>
+                    <span className="text-xs font-medium tracking-[0.04em] text-dim">
+                      {group.dateLine}
+                    </span>
+                  </div>
+                  <div className="glass-card overflow-hidden rounded-[15px] border">
+                    {group.meetings.map((meeting, i) => (
+                      <MeetingRow
+                        key={meeting.id}
+                        meeting={meeting}
+                        now={now}
+                        first={i === 0}
+                        isNext={meeting.id === nextId}
+                        onSelect={setSelected}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      <MeetingDrawer meeting={selected} onClose={() => setSelected(null)} />
+      <MeetingDrawer
+        meeting={selected}
+        now={now}
+        onClose={() => setSelected(null)}
+      />
     </section>
   );
 }
 
-/** A small pill-style segmented control matching the MEETU editorial style. */
-function Segmented<T extends string>({
+function LayoutSwitch({
   value,
   onChange,
-  options,
 }: {
-  value: T;
-  onChange: (value: T) => void;
-  options: readonly T[];
+  value: Layout;
+  onChange: (value: Layout) => void;
 }) {
+  const options = [
+    { value: "Agenda" as const, icon: AgendaIcon },
+    { value: "Calendar" as const, icon: CalendarIcon },
+  ];
+
   return (
-    <div className="relative flex rounded-[11px] border border-line bg-tile p-[3px]">
-      {options.map((opt) => {
-        const on = value === opt;
+    <div
+      className="glass-card relative flex rounded-[13px] border p-1"
+      aria-label="Meeting layout"
+    >
+      {options.map((option) => {
+        const active = value === option.value;
+        const Icon = option.icon;
         return (
           <button
-            key={opt}
+            key={option.value}
             type="button"
-            onClick={() => onChange(opt)}
-            className="relative rounded-lg px-4 py-[7px] text-[13px] font-semibold transition-colors"
-            style={{ color: on ? "#231F17" : "#9B927F" }}
+            aria-pressed={active}
+            onClick={() => onChange(option.value)}
+            className={`relative flex items-center gap-2 rounded-[9px] px-4 py-2 text-[13px] font-semibold transition-all ${
+              active
+                ? "bg-[#FCFAF5]/80 text-ink shadow-[0_1px_3px_rgba(38,34,25,0.12)]"
+                : "text-quiet hover:text-muted"
+            }`}
           >
-            {on && (
-              <span className="absolute inset-0 rounded-lg bg-panel shadow-[0_1px_2px_rgba(38,34,25,0.07)]" />
+            <Icon className="h-4 w-4" />
+            {option.value}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function AgendaTabs({
+  value,
+  onChange,
+  upcomingCount,
+  pastCount,
+}: {
+  value: View;
+  onChange: (value: View) => void;
+  upcomingCount: number;
+  pastCount: number;
+}) {
+  const options = [
+    { value: "Upcoming" as const, count: upcomingCount },
+    { value: "Past" as const, count: pastCount },
+  ];
+
+  return (
+    <div
+      className="mb-7 flex items-center gap-7 border-b border-line"
+      role="tablist"
+      aria-label="Agenda timeframe"
+    >
+      {options.map((option) => {
+        const active = value === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(option.value)}
+            className={`relative flex items-center gap-2 pb-3 text-[13px] font-semibold transition-colors ${
+              active ? "text-ink" : "text-quiet hover:text-muted"
+            }`}
+          >
+            {option.value}
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10.5px] tabular-nums ${
+                active
+                  ? "bg-accent/10 text-accent"
+                  : "bg-black/[0.035] text-dim"
+              }`}
+            >
+              {option.count}
+            </span>
+            {active && (
+              <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-accent" />
             )}
-            <span className="relative">{opt}</span>
           </button>
         );
       })}

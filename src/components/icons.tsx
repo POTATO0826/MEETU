@@ -101,6 +101,17 @@ export function CalendarIcon({ className }: IconProps) {
   );
 }
 
+export function AgendaIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)} strokeWidth={1.7}>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <circle cx="4.5" cy="6" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="18" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function ClientsIcon({ className }: IconProps) {
   return (
     <svg {...base(className)} strokeWidth={1.6}>
