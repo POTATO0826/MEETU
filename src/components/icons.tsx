@@ -131,6 +131,19 @@ export function RadarIcon({ className }: IconProps) {
   );
 }
 
+export function GraphIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)} strokeWidth={1.6}>
+      <circle cx="5.5" cy="6" r="2.2" />
+      <circle cx="18" cy="5.5" r="2.2" />
+      <circle cx="12" cy="13" r="2.4" />
+      <circle cx="6" cy="19" r="2.1" />
+      <circle cx="18.5" cy="18" r="2.1" />
+      <path d="M7.5 6.6 9.9 11.6M16.1 6.4 13.7 11.4M10.3 14.6 7.4 17.4M13.8 14.4 16.7 16.8" />
+    </svg>
+  );
+}
+
 export function ClientsIcon({ className }: IconProps) {
   return (
     <svg {...base(className)} strokeWidth={1.6}>

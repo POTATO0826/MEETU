@@ -6,6 +6,7 @@ const pillars = [
   { label: "Leads", dot: "#34548C" },
   { label: "Meetings", dot: "#566F4F" },
   { label: "Client Profiles", dot: "#9C3B33" },
+  { label: "News Radar", dot: "#B5832E", tag: "New" },
 ];
 
 export default function LandingPage() {
@@ -57,10 +58,10 @@ export default function LandingPage() {
           in one calm place.
         </h1>
 
-        <p className="animate-fade-up mt-[22px] max-w-[500px] text-[15.5px] leading-[1.6] text-muted [animation-delay:0.42s]">
-          Leads, meetings, and client profiles — held together with the quiet
-          precision your work deserves. No noise. Just the relationships that
-          matter.
+        <p className="animate-fade-up mt-[22px] max-w-[520px] text-[15.5px] leading-[1.6] text-muted [animation-delay:0.42s]">
+          Leads, meetings, and client profiles — held together with quiet
+          precision. Now with AI that turns today&rsquo;s news into ready-to-use
+          conversation starters for every client.
         </p>
 
         <div className="animate-fade-up mt-[30px] flex items-center gap-4 [animation-delay:0.56s]">
@@ -84,6 +85,14 @@ export default function LandingPage() {
                 style={{ background: p.dot }}
               />
               {p.label}
+              {"tag" in p && p.tag && (
+                <span
+                  className="rounded-full border border-[#D6BE7E] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
+                  style={{ color: "#9A7322", background: "rgba(181,131,46,0.10)" }}
+                >
+                  {p.tag}
+                </span>
+              )}
             </span>
           ))}
         </div>

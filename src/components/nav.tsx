@@ -6,6 +6,7 @@ import {
   ActivityIcon,
   CalendarIcon,
   ClientsIcon,
+  GraphIcon,
   RadarIcon,
   UsersIcon,
 } from "@/components/icons";
@@ -50,6 +51,14 @@ const links = [
     icon: RadarIcon,
     accent: "#B5832E",
     tint: "rgba(181,131,46,0.12)",
+  },
+  {
+    href: "/graph",
+    label: "Memory",
+    sub: "AI brain",
+    icon: GraphIcon,
+    accent: "#6A5278",
+    tint: "rgba(106,82,120,0.12)",
   },
 ];
 

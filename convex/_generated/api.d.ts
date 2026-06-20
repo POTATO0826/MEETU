@@ -8,11 +8,15 @@
  * @module
  */
 
+import type * as aiModel from "../aiModel.js";
 import type * as conversationAgent from "../conversationAgent.js";
 import type * as conversationAgentActions from "../conversationAgentActions.js";
 import type * as crm from "../crm.js";
 import type * as debug from "../debug.js";
+import type * as graph from "../graph.js";
+import type * as graphActions from "../graphActions.js";
 import type * as manualConversionActions from "../manualConversionActions.js";
+import type * as memory from "../memory.js";
 import type * as news from "../news.js";
 import type * as newsActions from "../newsActions.js";
 import type * as repair from "../repair.js";
@@ -29,11 +33,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  aiModel: typeof aiModel;
   conversationAgent: typeof conversationAgent;
   conversationAgentActions: typeof conversationAgentActions;
   crm: typeof crm;
   debug: typeof debug;
+  graph: typeof graph;
+  graphActions: typeof graphActions;
   manualConversionActions: typeof manualConversionActions;
+  memory: typeof memory;
   news: typeof news;
   newsActions: typeof newsActions;
   repair: typeof repair;

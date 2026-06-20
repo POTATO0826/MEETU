@@ -1,6 +1,5 @@
 "use node";
 
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, stepCountIs, tool } from "ai";
 import { makeFunctionReference } from "convex/server";
 import { v } from "convex/values";
@@ -9,6 +8,7 @@ import MemoryClient from "mem0ai";
 import type { Id } from "./_generated/dataModel";
 import { internalAction } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
+import { activeModelLabel, buildChatModel } from "./aiModel";
 
 type ClaimedAnalysis = {
   conversation: {
@@ -332,17 +332,12 @@ export const analyzeConversation = internalAction({
     if (!claimed) return null;
 
     try {
-      const modelId = process.env.KIMI_MODEL ?? "kimi-k2.6";
-      const kimi = createOpenAICompatible({
-        name: "kimi",
-        apiKey: requiredEnv("KIMI_API_KEY"),
-        baseURL: process.env.KIMI_BASE_URL ?? "https://api.moonshot.ai/v1",
-      });
+      const model = buildChatModel("conversation analysis");
       const memories = await searchMemories(claimed.conversation.participantPhone);
       const facts: ExtractedFact[] = [];
       const actions: SuggestedAction[] = [];
       const result = await generateText({
-        model: kimi.chatModel(modelId),
+        model,
         system: buildSystemPrompt(),
         prompt: buildUserPrompt(claimed, memories),
         tools: buildTools(ctx, claimed, facts, actions),
@@ -359,7 +354,7 @@ export const analyzeConversation = internalAction({
           sentiment: inferSentiment(result.text),
           extractedFacts: facts.slice(0, 20),
           suggestedActions: actions.slice(0, 20),
-          model: modelId,
+          model: activeModelLabel(),
         },
       );
 

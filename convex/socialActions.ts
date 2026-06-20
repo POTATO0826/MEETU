@@ -1,6 +1,5 @@
 "use node";
 
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText } from "ai";
 import { makeFunctionReference } from "convex/server";
 import { v } from "convex/values";
@@ -8,6 +7,7 @@ import { z } from "zod";
 import { action } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
+import { buildChatModel } from "./aiModel";
 
 const FACEBOOK_POSTS_ACTOR_ID = "apify/facebook-posts-scraper";
 const APIFY_API_BASE_URL = "https://api.apify.com/v2";
@@ -242,12 +242,7 @@ async function analyzeFacebookPosts(
   );
   if (pendingPosts.length === 0) return;
 
-  const modelId = process.env.KIMI_MODEL ?? "kimi-k2.6";
-  const kimi = createOpenAICompatible({
-    name: "kimi",
-    apiKey: requiredEnv("KIMI_API_KEY"),
-    baseURL: process.env.KIMI_BASE_URL ?? "https://api.moonshot.ai/v1",
-  });
+  const model = buildChatModel("Facebook post analysis");
   const touchedPostIds = new Set<Id<"clientSocialPosts">>();
 
   const touchpointSchema = z.object({
@@ -268,7 +263,7 @@ async function analyzeFacebookPosts(
 
   try {
     const result = await generateText({
-      model: kimi.chatModel(modelId),
+      model,
       system: [
         "You analyze consented Facebook posts for one financial advisor.",
         "Create relationship touchpoints only when a post reveals a client life update, upcoming plan, recent event, milestone, availability context, work/family/travel/health update, or other human context worth remembering.",

@@ -1,16 +1,12 @@
 "use node";
 
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText } from "ai";
 import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-
-type ChatModel = ReturnType<
-  ReturnType<typeof createOpenAICompatible>["chatModel"]
->;
+import { buildChatModel, type ChatModel } from "./aiModel";
 
 // Only keep real article URLs (drop nav/newsletter/jobs/tag pages).
 const ARTICLE_URL = /sinchew\.com\.my\/news\//i;
@@ -86,7 +82,7 @@ export const searchTopic = action({
       return { scrapedFresh: false, poolSize: 0, tailoredTo: null, results: [] };
     }
 
-    const model = buildModel();
+    const model = buildChatModel("news research");
 
     // 1. Load the recent article pool; scrape + translate fresh if stale.
     const { pool, scrapedFresh } = await ensurePool(ctx, model);
@@ -194,7 +190,7 @@ export const searchTopic = action({
 export const prepareTopics = action({
   args: {},
   handler: async (ctx): Promise<{ poolSize: number; scrapedFresh: boolean }> => {
-    const model = buildModel();
+    const model = buildChatModel("news research");
     const { pool, scrapedFresh } = await ensurePool(ctx, model);
 
     const untranslated: SavedArticle[] = pool
@@ -207,15 +203,6 @@ export const prepareTopics = action({
     return { poolSize: pool.length, scrapedFresh };
   },
 });
-
-function buildModel(): ChatModel {
-  const kimi = createOpenAICompatible({
-    name: "kimi",
-    apiKey: requiredEnv("KIMI_API_KEY"),
-    baseURL: process.env.KIMI_BASE_URL ?? "https://api.moonshot.ai/v1",
-  });
-  return kimi.chatModel(process.env.KIMI_MODEL ?? "kimi-k2.6");
-}
 
 function isStale(pool: PoolArticle[]): boolean {
   const newest = pool.reduce((max, a) => {
@@ -382,13 +369,7 @@ export const runNewsResearch = internalAction({
         return null;
       }
 
-      const kimi = createOpenAICompatible({
-        name: "kimi",
-        apiKey: requiredEnv("KIMI_API_KEY"),
-        baseURL: process.env.KIMI_BASE_URL ?? "https://api.moonshot.ai/v1",
-      });
-      const modelId = process.env.KIMI_MODEL ?? "kimi-k2.6";
-      const model = kimi.chatModel(modelId);
+      const model = buildChatModel("news research");
 
       // 2. Translate any headlines that don't yet have an English title.
       await translateHeadlines(ctx, model, saved);
