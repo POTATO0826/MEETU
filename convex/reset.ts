@@ -23,6 +23,7 @@ export const resetAllTables = mutation({
     deleted += await deleteFromWhatsappMessages(ctx);
     deleted += await deleteFromWhatsappConversations(ctx);
     deleted += await deleteFromMeetings(ctx);
+    deleted += await deleteFromClientActivities(ctx);
     deleted += await deleteFromLeads(ctx);
     deleted += await deleteFromClients(ctx);
     deleted += await deleteFromAdvisors(ctx);
@@ -74,6 +75,12 @@ async function deleteFromWhatsappConversations(ctx: MutationCtx) {
 
 async function deleteFromMeetings(ctx: MutationCtx) {
   const rows = await ctx.db.query("meetings").take(100);
+  for (const row of rows) await ctx.db.delete(row._id);
+  return rows.length;
+}
+
+async function deleteFromClientActivities(ctx: MutationCtx) {
+  const rows = await ctx.db.query("clientActivities").take(100);
   for (const row of rows) await ctx.db.delete(row._id);
   return rows.length;
 }

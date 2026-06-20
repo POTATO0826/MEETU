@@ -25,6 +25,12 @@ const clientStatus = v.union(
   v.literal("Review due"),
 );
 
+const clientActivityPriority = v.union(
+  v.literal("Upcoming"),
+  v.literal("Recent"),
+  v.literal("Watch"),
+);
+
 const storeManualLeadConversionMemory = makeFunctionReference<
   "action",
   {
@@ -116,6 +122,38 @@ export const listMeetings = query({
   args: {},
   handler: async (ctx) => {
     return await ctx.db.query("meetings").withIndex("by_start").take(100);
+  },
+});
+
+export const listClientActivities = query({
+  args: {
+    priority: v.optional(clientActivityPriority),
+  },
+  handler: async (ctx, args) => {
+    const priority = args.priority;
+    const activities = priority
+      ? await ctx.db
+          .query("clientActivities")
+          .withIndex("by_priority", (q) => q.eq("priority", priority))
+          .order("desc")
+          .take(100)
+      : await ctx.db
+          .query("clientActivities")
+          .withIndex("by_mentioned_at")
+          .order("desc")
+          .take(100);
+
+    const enriched = [];
+    for (const activity of activities) {
+      const client = await ctx.db.get(activity.clientId);
+      enriched.push({
+        ...activity,
+        clientName: client?.name ?? "Unknown client",
+        clientSlug: client?.slug ?? "",
+      });
+    }
+
+    return enriched;
   },
 });
 

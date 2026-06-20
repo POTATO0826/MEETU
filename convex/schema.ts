@@ -71,6 +71,21 @@ const meetingStatus = v.union(
   v.literal("Canceled"),
 );
 
+const clientActivityCategory = v.union(
+  v.literal("Travel"),
+  v.literal("Family"),
+  v.literal("Work"),
+  v.literal("Health"),
+  v.literal("Milestone"),
+  v.literal("Availability"),
+);
+
+const clientActivityPriority = v.union(
+  v.literal("Upcoming"),
+  v.literal("Recent"),
+  v.literal("Watch"),
+);
+
 const conversationAnalysisStatus = v.union(
   v.literal("Idle"),
   v.literal("Queued"),
@@ -211,6 +226,31 @@ export default defineSchema({
     .index("by_client", ["clientId"])
     .index("by_lead", ["leadId"])
     .index("by_advisor", ["advisorId"]),
+
+  clientActivities: defineTable({
+    clientId: v.id("clients"),
+    conversationId: v.optional(v.id("whatsappConversations")),
+    messageId: v.optional(v.id("whatsappMessages")),
+    category: clientActivityCategory,
+    activity: v.string(),
+    timeframe: v.string(),
+    mentionedAt: isoDate,
+    suggestedTouchpoint: v.string(),
+    source: v.union(
+      v.literal("WhatsApp"),
+      v.literal("Manual"),
+      v.literal("Other"),
+    ),
+    priority: clientActivityPriority,
+    confidence: v.number(),
+    rationale: v.optional(v.string()),
+    createdAt: isoDateTime,
+    updatedAt: isoDateTime,
+  })
+    .index("by_client", ["clientId"])
+    .index("by_priority", ["priority"])
+    .index("by_mentioned_at", ["mentionedAt"])
+    .index("by_conversation", ["conversationId"]),
 
   whatsappConversations: defineTable({
     advisorId: v.id("advisors"),

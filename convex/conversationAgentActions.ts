@@ -165,6 +165,19 @@ const upsertMeetingFromConversation = makeFunctionReference<
   { updated: boolean; reason?: string; meetingId?: Id<"meetings">; action?: string }
 >("conversationAgent:upsertMeetingFromConversation");
 
+const storeClientActivity = makeFunctionReference<
+  "mutation",
+  ClientActivityInput & {
+    conversationId: Id<"whatsappConversations">;
+    messageId?: Id<"whatsappMessages">;
+  },
+  {
+    stored: boolean;
+    reason?: string;
+    activityId?: Id<"clientActivities">;
+  }
+>("conversationAgent:storeClientActivity");
+
 const completeConversationAnalysis = makeFunctionReference<
   "mutation",
   {
@@ -212,6 +225,15 @@ const meetingStatusSchema = z.enum([
   "Completed",
   "Canceled",
 ]);
+const clientActivityCategorySchema = z.enum([
+  "Travel",
+  "Family",
+  "Work",
+  "Health",
+  "Milestone",
+  "Availability",
+]);
+const clientActivityPrioritySchema = z.enum(["Upcoming", "Recent", "Watch"]);
 
 const createLeadInputSchema = z.object({
   name: z.string().optional(),
@@ -254,9 +276,34 @@ const meetingInputSchema = z.object({
   agenda: z.array(z.string()),
 });
 
+const clientActivityInputSchema = z.object({
+  clientId: z.string(),
+  messageId: z.string().optional(),
+  category: clientActivityCategorySchema,
+  activity: z.string(),
+  timeframe: z.string(),
+  mentionedAt: z.string(),
+  suggestedTouchpoint: z.string(),
+  priority: clientActivityPrioritySchema,
+  confidence: z.number(),
+  rationale: z.string(),
+});
+
 type CreateLeadInput = z.infer<typeof createLeadInputSchema>;
 type LeadProfilePatch = z.infer<typeof leadProfilePatchSchema>;
 type MeetingInput = z.infer<typeof meetingInputSchema>;
+type ClientActivityInput = {
+  clientId: Id<"clients">;
+  messageId?: Id<"whatsappMessages">;
+  category: z.infer<typeof clientActivityCategorySchema>;
+  activity: string;
+  timeframe: string;
+  mentionedAt: string;
+  suggestedTouchpoint: string;
+  priority: z.infer<typeof clientActivityPrioritySchema>;
+  confidence: number;
+  rationale: string;
+};
 type ExtractedFact = {
   target: "Lead" | "Client" | "Meeting" | "Profile";
   field: string;
@@ -548,7 +595,7 @@ function buildTools(
     }),
     storeMemoryFact: tool({
       description:
-        "Store a durable client memory in Mem0. Use for stable facts that should help future conversations, such as goals, preferences, constraints, language, location, family context, risk tolerance, or client status. Do not store advisor names as client nicknames, transient scheduling chatter, or facts from outbound advisor identity metadata.",
+        "Store a durable client memory in Mem0. Use for stable facts that should help future conversations, such as goals, preferences, constraints, language, location, family context, risk tolerance, or client status. Do not use this for relationship activity/life updates that should appear on the Activity page; use storeClientActivityMemory for those. Do not store advisor names as client nicknames, transient scheduling chatter, or facts from outbound advisor identity metadata.",
       inputSchema: z.object({
         fact: z.string(),
         category: z.string(),
@@ -567,6 +614,65 @@ function buildTools(
           conversationId: claimed.conversation._id,
         });
         return { stored: true };
+      },
+    }),
+    storeClientActivityMemory: tool({
+      description:
+        "Store client activity for relationship maintenance in Convex and Mem0. Use when a linked client mentions a personal/professional life update, upcoming plan, recent event, availability constraint, milestone, health/family/work/travel context, or other human context the advisor should remember and may follow up on. Use only for facts about the client, not the advisor. Do not use for generic greetings, trivial small talk, vague feelings, ordinary scheduling logistics, or lead-only prospects without a clientId.",
+      inputSchema: clientActivityInputSchema,
+      execute: async ({
+        clientId,
+        messageId,
+        category,
+        activity,
+        timeframe,
+        mentionedAt,
+        suggestedTouchpoint,
+        priority,
+        confidence,
+        rationale,
+      }) => {
+        facts.push({
+          target: "Profile",
+          field: `client_activity:${category}`,
+          value: `${activity} (${timeframe})`,
+          confidence,
+        });
+        actions.push({
+          type: "UpdateClient",
+          title: "Stored client activity",
+          rationale,
+          confidence,
+        });
+        const result = await ctx.runMutation(storeClientActivity, {
+          conversationId: claimed.conversation._id,
+          clientId: clientId as Id<"clients">,
+          messageId: messageId as Id<"whatsappMessages"> | undefined,
+          category,
+          activity,
+          timeframe,
+          mentionedAt,
+          suggestedTouchpoint,
+          priority,
+          confidence,
+          rationale,
+        });
+        if (result.stored) {
+          await addMemory(
+            claimed.conversation.participantPhone,
+            `Client activity: ${activity}. Timeframe: ${timeframe}. Suggested touchpoint: ${suggestedTouchpoint}`,
+            {
+              category: "client_activity",
+              activityCategory: category,
+              priority,
+              confidence,
+              conversationId: claimed.conversation._id,
+              clientId,
+              activityId: result.activityId,
+            },
+          );
+        }
+        return result;
       },
     }),
   };
@@ -588,6 +694,9 @@ function buildSystemPrompt() {
     "If no lead exists and the sender appears to be a prospective client, create a lead.",
     "If a linked client exists, treat the person as a client and avoid lead-only status changes.",
     "Store durable client facts in Mem0 with storeMemoryFact.",
+    "For client relationship activity, use storeClientActivityMemory instead of generic memory. This includes life events, upcoming plans, recent events, family/work/travel/health updates, milestones, and availability context that could help the advisor maintain the relationship.",
+    "Only store client activity when there is a linked clientId. Do not store advisor-side activity or outbound sender identity as client activity.",
+    "Do not store generic greetings, trivial small talk, or ordinary scheduling logistics as client activity.",
     "Return a short operational summary for the advisor after tool use.",
   ].join("\n");
 }
