@@ -1,15 +1,17 @@
 import type { Meeting } from "@/lib/meetings";
-import { formatTime } from "@/lib/format";
+import { formatTime, meetingDisplayStatus } from "@/lib/format";
 import { StatusPill } from "@/components/ui";
 import { ModeIcon } from "./mode-icon";
 
 export function MeetingRow({
   meeting,
+  now,
   first,
   isNext,
   onSelect,
 }: {
   meeting: Meeting;
+  now: Date;
   first: boolean;
   isNext: boolean;
   onSelect: (meeting: Meeting) => void;
@@ -22,7 +24,7 @@ export function MeetingRow({
     <button
       type="button"
       onClick={() => onSelect(meeting)}
-      className="relative flex w-full items-center gap-5 px-[22px] py-[18px] text-left transition-colors hover:bg-[#F8F4EC]"
+      className="glass-row relative flex w-full items-center gap-5 px-[22px] py-[18px] text-left"
       style={{ borderTop: first ? "none" : "1px solid #ECE6D9" }}
     >
       {isNext && (
@@ -33,7 +35,7 @@ export function MeetingRow({
         <span className="text-[15px] font-semibold tabular-nums text-ink-soft">
           {formatTime(meeting.start)}
         </span>
-        <span className="text-[11.5px] tabular-nums text-dim">
+        <span className="text-[11.5px] font-medium tabular-nums text-dim">
           {formatTime(endTime)}
         </span>
       </span>
@@ -51,7 +53,7 @@ export function MeetingRow({
         </span>
       </span>
 
-      <StatusPill status={meeting.status} />
+      <StatusPill status={meetingDisplayStatus(meeting.status, meeting.start, now)} />
     </button>
   );
 }

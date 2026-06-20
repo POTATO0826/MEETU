@@ -13,7 +13,7 @@ export function LeadCard({
     <button
       type="button"
       onClick={() => onSelect(lead)}
-      className="flex flex-col gap-3.5 rounded-2xl border border-hair bg-panel p-5 text-left shadow-[0_1px_2px_rgba(38,34,25,0.03),0_14px_30px_-26px_rgba(38,34,25,0.25)] transition-all hover:-translate-y-0.5 hover:border-[#CFC7B5]"
+      className="glass-card glass-interactive flex flex-col gap-3.5 rounded-2xl border p-5 text-left"
     >
       <div className="flex items-start gap-3.5">
         <Avatar name={lead.name} size={44} />
@@ -39,15 +39,18 @@ export function LeadCard({
         {lead.situationTeaser}
       </p>
 
-      <div className="flex items-center gap-2.5 border-t border-line-soft pt-3 text-[11.5px] text-quiet">
-        <span className="inline-flex items-center gap-1.5 font-semibold text-[#5C6E86]">
-          <span className="h-[5px] w-[5px] rounded-full bg-accent" />
-          {lead.serviceInterest}
-        </span>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-t border-line-soft pt-3 text-[11.5px] text-quiet">
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className="inline-flex min-w-0 items-center gap-1.5 font-semibold text-[#5C6E86]">
+            <span className="h-[5px] w-[5px] flex-none rounded-full bg-accent" />
+            <span className="min-w-0">{lead.serviceInterest}</span>
+          </span>
         <span className="text-[#D8D1C2]">·</span>
-        <span>{lead.source}</span>
-        <span className="flex-1" />
-        <span>Added {formatRelative(lead.addedDate)}</span>
+          <span className="flex-none">{lead.source}</span>
+        </span>
+        <span className="whitespace-nowrap text-right">
+          Added {formatRelative(lead.addedDate)}
+        </span>
       </div>
     </button>
   );

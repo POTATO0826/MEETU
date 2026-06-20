@@ -1,7 +1,11 @@
 "use client";
 
 import type { Meeting } from "@/lib/meetings";
-import { formatLongDate, formatTime } from "@/lib/format";
+import {
+  formatLongDate,
+  formatTime,
+  meetingDisplayStatus,
+} from "@/lib/format";
 import { Drawer, CloseButton, DrawerLabel } from "@/components/drawer";
 import { StatusPill, Avatar } from "@/components/ui";
 import { Check } from "@/components/icons";
@@ -15,9 +19,11 @@ function durationLabel(minutes: number): string {
 
 export function MeetingDrawer({
   meeting,
+  now,
   onClose,
 }: {
   meeting: Meeting | null;
+  now: Date;
   onClose: () => void;
 }) {
   return (
@@ -28,13 +34,21 @@ export function MeetingDrawer({
       label={meeting ? `${meeting.title} details` : "Meeting details"}
     >
       {meeting && (
-        <Inner meeting={meeting} onClose={onClose} />
+        <Inner meeting={meeting} now={now} onClose={onClose} />
       )}
     </Drawer>
   );
 }
 
-function Inner({ meeting, onClose }: { meeting: Meeting; onClose: () => void }) {
+function Inner({
+  meeting,
+  now,
+  onClose,
+}: {
+  meeting: Meeting;
+  now: Date;
+  onClose: () => void;
+}) {
   const endTime = new Date(
     new Date(meeting.start).getTime() + meeting.durationMinutes * 60_000
   ).toISOString();
@@ -68,7 +82,9 @@ function Inner({ meeting, onClose }: { meeting: Meeting; onClose: () => void }) 
           <CloseButton onClose={onClose} />
         </div>
         <div className="relative mt-[15px] flex items-center gap-2.5">
-          <StatusPill status={meeting.status} />
+          <StatusPill
+            status={meetingDisplayStatus(meeting.status, meeting.start, now)}
+          />
           <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-muted">
             <ModeIcon mode={meeting.mode} className="h-4 w-4 text-faint" />
             {meeting.mode}

@@ -2,18 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { leads } from "@/lib/leads";
-import { clients } from "@/lib/clients";
-import { meetings } from "@/lib/meetings";
 import {
   CalendarIcon,
   ClientsIcon,
   UsersIcon,
 } from "@/components/icons";
-
-const upcomingCount = meetings.filter(
-  (m) => new Date(m.start).getTime() >= Date.now()
-).length;
 
 const links = [
   {
@@ -23,7 +16,6 @@ const links = [
     icon: UsersIcon,
     accent: "#34548C",
     tint: "rgba(52,84,140,0.10)",
-    count: leads.length,
   },
   {
     href: "/meetings",
@@ -32,7 +24,6 @@ const links = [
     icon: CalendarIcon,
     accent: "#566F4F",
     tint: "rgba(86,111,79,0.12)",
-    count: upcomingCount,
   },
   {
     href: "/clients",
@@ -41,7 +32,6 @@ const links = [
     icon: ClientsIcon,
     accent: "#9C3B33",
     tint: "rgba(156,59,51,0.10)",
-    count: clients.length,
   },
 ];
 
@@ -76,7 +66,7 @@ export function Nav() {
         <div className="px-3 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-ghost">
           Workspace
         </div>
-        {links.map(({ href, label, sub, icon: Icon, accent, tint, count }) => {
+        {links.map(({ href, label, sub, icon: Icon, accent, tint }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
@@ -120,15 +110,6 @@ export function Nav() {
                 >
                   {sub}
                 </span>
-              </span>
-              <span
-                className="flex h-5 min-w-[22px] flex-none items-center justify-center rounded-[7px] px-[7px] text-[11.5px] font-bold tabular-nums"
-                style={{
-                  background: active ? accent : "#EEE8DB",
-                  color: active ? "#F4F0E6" : "#9B927F",
-                }}
-              >
-                {count}
               </span>
             </Link>
           );
