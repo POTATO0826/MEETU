@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { clients, getClient } from "@/lib/clients";
+import { getClient } from "@/lib/clients";
 import { meetings } from "@/lib/meetings";
 import {
   formatCurrency,
@@ -13,13 +13,13 @@ import { AllocationBar } from "@/components/clients/allocation-bar";
 import { Avatar, StatusPill } from "@/components/ui";
 import { ArrowLeft, Mail, Phone } from "@/components/icons";
 
-export function generateStaticParams() {
-  return clients.map((c) => ({ slug: c.slug }));
-}
+type ClientProfilePageProps = {
+  params: Promise<{
+    slug: string;
+  }>;
+};
 
-export default async function ClientProfilePage(
-  props: PageProps<"/clients/[slug]">
-) {
+export default async function ClientProfilePage(props: ClientProfilePageProps) {
   const { slug } = await props.params;
   const client = getClient(slug);
   if (!client) notFound();
