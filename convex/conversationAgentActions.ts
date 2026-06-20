@@ -124,6 +124,18 @@ const createLeadFollowUpTask = makeFunctionReference<
   Id<"advisorTasks">
 >("conversationAgent:createLeadFollowUpTask");
 
+const upsertMeetingFromConversation = makeFunctionReference<
+  "mutation",
+  MeetingInput & {
+    conversationId: Id<"whatsappConversations">;
+    leadId?: Id<"leads">;
+    clientId?: Id<"clients">;
+    confidence: number;
+    rationale: string;
+  },
+  { updated: boolean; reason?: string; meetingId?: Id<"meetings">; action?: string }
+>("conversationAgent:upsertMeetingFromConversation");
+
 const completeConversationAnalysis = makeFunctionReference<
   "mutation",
   {
@@ -164,6 +176,13 @@ const serviceInterestSchema = z.enum([
 ]);
 
 const leadStatusSchema = z.enum(["New", "Contacted", "Qualified", "Proposal"]);
+const meetingModeSchema = z.enum(["Video", "Phone", "In-person"]);
+const meetingStatusSchema = z.enum([
+  "Confirmed",
+  "Tentative",
+  "Completed",
+  "Canceled",
+]);
 
 const createLeadInputSchema = z.object({
   name: z.string().optional(),
@@ -193,8 +212,22 @@ const leadProfilePatchSchema = z.object({
   lastContact: z.string().optional(),
 });
 
+const meetingInputSchema = z.object({
+  title: z.string(),
+  attendeeRole: z.string().optional(),
+  start: z.string(),
+  durationMinutes: z.number(),
+  mode: meetingModeSchema,
+  location: z.string(),
+  status: meetingStatusSchema,
+  topic: serviceInterestSchema,
+  purpose: z.string(),
+  agenda: z.array(z.string()),
+});
+
 type CreateLeadInput = z.infer<typeof createLeadInputSchema>;
 type LeadProfilePatch = z.infer<typeof leadProfilePatchSchema>;
+type MeetingInput = z.infer<typeof meetingInputSchema>;
 type ExtractedFact = {
   target: "Lead" | "Client" | "Meeting" | "Profile";
   field: string;
@@ -424,6 +457,44 @@ function buildTools(
         });
       },
     }),
+    upsertMeetingFromConversation: tool({
+      description:
+        "Create or update a meeting in the schedule when the client and advisor have a clear meeting date and time.",
+      inputSchema: meetingInputSchema.extend({
+        leadId: z.string().optional(),
+        clientId: z.string().optional(),
+        confidence: z.number(),
+        rationale: z.string(),
+      }),
+      execute: async ({
+        leadId,
+        clientId,
+        confidence,
+        rationale,
+        ...meeting
+      }) => {
+        facts.push({
+          target: "Meeting",
+          field: "start",
+          value: meeting.start,
+          confidence,
+        });
+        actions.push({
+          type: "ScheduleMeeting",
+          title: meeting.title,
+          rationale,
+          confidence,
+        });
+        return await ctx.runMutation(upsertMeetingFromConversation, {
+          conversationId: claimed.conversation._id,
+          leadId: leadId as Id<"leads"> | undefined,
+          clientId: clientId as Id<"clients"> | undefined,
+          confidence,
+          rationale,
+          ...meeting,
+        });
+      },
+    }),
     storeMemoryFact: tool({
       description:
         "Store durable client facts in Mem0, such as preferences, goals, constraints, and context.",
@@ -456,6 +527,8 @@ function buildSystemPrompt() {
     "Analyze only the provided conversation context and existing lead state.",
     "Use tools to create or update Convex records; do not claim an update happened unless a tool succeeds.",
     "Be conservative. Do not infer exact age, portfolio, meeting date, or pipeline status from vague language.",
+    "Only schedule or update a meeting when the conversation includes a specific date/time and clear acceptance in the same context.",
+    "When scheduling, convert the meeting start to an ISO datetime. The advisor is in Asia/Kuala_Lumpur unless context says otherwise.",
     "If no lead exists and the sender appears to be a prospective client, create a lead.",
     "Store durable client facts in Mem0 with storeMemoryFact.",
     "Return a short operational summary for the advisor after tool use.",
@@ -475,6 +548,7 @@ function buildUserPrompt(claimed: NonNullable<ClaimedAnalysis>, memories: string
     .join("\n");
 
   return [
+    `Current time: ${new Date().toISOString()} (advisor timezone: Asia/Kuala_Lumpur)`,
     `Participant phone: ${conversation.participantPhone}`,
     `Participant name: ${conversation.participantName ?? "Unknown"}`,
     `Linked lead: ${claimed.lead ? JSON.stringify(claimed.lead) : "None"}`,

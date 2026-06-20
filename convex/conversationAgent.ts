@@ -1,12 +1,26 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { internalMutation, internalQuery } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 
 const leadStatus = v.union(
   v.literal("New"),
   v.literal("Contacted"),
   v.literal("Qualified"),
   v.literal("Proposal"),
+);
+
+const meetingMode = v.union(
+  v.literal("Video"),
+  v.literal("Phone"),
+  v.literal("In-person"),
+);
+
+const meetingStatus = v.union(
+  v.literal("Confirmed"),
+  v.literal("Tentative"),
+  v.literal("Completed"),
+  v.literal("Canceled"),
 );
 
 const serviceInterest = v.union(
@@ -281,6 +295,29 @@ export const createLeadFollowUpTask = internalMutation({
   },
 });
 
+export const upsertMeetingFromConversation = internalMutation({
+  args: {
+    conversationId: v.id("whatsappConversations"),
+    leadId: v.optional(v.id("leads")),
+    clientId: v.optional(v.id("clients")),
+    title: v.string(),
+    attendeeRole: v.optional(v.string()),
+    start: v.string(),
+    durationMinutes: v.number(),
+    mode: meetingMode,
+    location: v.string(),
+    status: meetingStatus,
+    topic: serviceInterest,
+    purpose: v.string(),
+    agenda: v.array(v.string()),
+    confidence: v.number(),
+    rationale: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await createOrUpdateMeeting(ctx, args);
+  },
+});
+
 export const completeConversationAnalysis = internalMutation({
   args: {
     conversationId: v.id("whatsappConversations"),
@@ -379,6 +416,119 @@ export const failConversationAnalysis = internalMutation({
     return null;
   },
 });
+
+type MeetingMutationInput = {
+  conversationId: Doc<"whatsappConversations">["_id"];
+  leadId?: Doc<"leads">["_id"];
+  clientId?: Doc<"clients">["_id"];
+  title: string;
+  attendeeRole?: string;
+  start: string;
+  durationMinutes: number;
+  mode: Doc<"meetings">["mode"];
+  location: string;
+  status: Doc<"meetings">["status"];
+  topic: Doc<"meetings">["topic"];
+  purpose: string;
+  agenda: string[];
+  confidence: number;
+  rationale: string;
+};
+
+async function createOrUpdateMeeting(
+  ctx: MutationCtx,
+  args: MeetingMutationInput,
+) {
+  if (args.confidence < 0.85) {
+    return { updated: false, reason: "confidence_too_low" };
+  }
+
+  const parsedStart = Date.parse(args.start);
+  if (!Number.isFinite(parsedStart)) {
+    return { updated: false, reason: "invalid_start" };
+  }
+  if (args.durationMinutes <= 0 || args.durationMinutes > 480) {
+    return { updated: false, reason: "invalid_duration" };
+  }
+
+  const conversation = await ctx.db.get(args.conversationId);
+  if (!conversation) throw new Error("Conversation not found");
+
+  const start = new Date(parsedStart).toISOString();
+  const leadId = args.leadId ?? conversation.leadId;
+  const clientId = args.clientId ?? conversation.clientId;
+  const lead = leadId ? await ctx.db.get(leadId) : null;
+  const client = clientId ? await ctx.db.get(clientId) : null;
+  const attendee =
+    client?.name ??
+    lead?.name ??
+    conversation.participantName ??
+    conversation.participantPhone;
+  const attendeeRole =
+    args.attendeeRole ??
+    (client ? "Client" : lead ? "Prospective client" : "WhatsApp contact");
+  const now = new Date().toISOString();
+  const externalId = `wa-${args.conversationId}-${start}`;
+
+  const existingByExternalId = await ctx.db
+    .query("meetings")
+    .withIndex("by_external_id", (q) => q.eq("externalId", externalId))
+    .unique();
+
+  const meetingPatch = {
+    title: args.title,
+    attendee,
+    attendeeRole,
+    leadId,
+    clientId,
+    advisorId: conversation.advisorId,
+    start,
+    durationMinutes: args.durationMinutes,
+    mode: args.mode,
+    location: args.location,
+    status: args.status,
+    topic: args.topic,
+    purpose: args.purpose,
+    agenda: args.agenda,
+    updatedAt: now,
+  };
+
+  if (existingByExternalId) {
+    await ctx.db.patch(existingByExternalId._id, meetingPatch);
+    return {
+      updated: true,
+      meetingId: existingByExternalId._id,
+      action: "updated",
+    };
+  }
+
+  const relatedMeetings = leadId
+    ? await ctx.db
+        .query("meetings")
+        .withIndex("by_lead", (q) => q.eq("leadId", leadId))
+        .take(20)
+    : clientId
+      ? await ctx.db
+          .query("meetings")
+          .withIndex("by_client", (q) => q.eq("clientId", clientId))
+          .take(20)
+      : [];
+  const duplicate = relatedMeetings.find(
+    (meeting) => meeting.start === start && meeting.status !== "Canceled",
+  );
+
+  if (duplicate) {
+    await ctx.db.patch(duplicate._id, meetingPatch);
+    return { updated: true, meetingId: duplicate._id, action: "updated" };
+  }
+
+  const meetingId = await ctx.db.insert("meetings", {
+    externalId,
+    ...meetingPatch,
+    createdAt: now,
+  });
+  return { updated: true, meetingId, action: "created" };
+}
 
 function compactPatch<T extends Record<string, unknown>>(patch: T) {
   return Object.fromEntries(

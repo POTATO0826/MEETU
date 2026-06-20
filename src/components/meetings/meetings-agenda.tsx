@@ -1,20 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Meeting } from "@/lib/meetings";
 import { dayKey, formatDayLabel, formatLongDate } from "@/lib/format";
-import {
-  getCreatedMeetingsServerSnapshot,
-  loadCreatedMeetings,
-  subscribeToCreatedMeetings,
-} from "@/lib/meeting-storage";
 import { MeetingRow } from "./meeting-row";
 import { MeetingDrawer } from "./meeting-drawer";
 import { MeetingsCalendar } from "./meetings-calendar";
@@ -30,21 +19,13 @@ type DayGroup = {
   meetings: Meeting[];
 };
 
-export function MeetingsAgenda({ meetings: initialMeetings }: { meetings: Meeting[] }) {
-  const createdMeetings = useSyncExternalStore(
-    subscribeToCreatedMeetings,
-    loadCreatedMeetings,
-    getCreatedMeetingsServerSnapshot
-  );
-  const meetings = useMemo(
-    () => [
-      ...createdMeetings,
-      ...initialMeetings.filter(
-        (meeting) => !createdMeetings.some((item) => item.id === meeting.id)
-      ),
-    ],
-    [createdMeetings, initialMeetings]
-  );
+export function MeetingsAgenda({
+  meetings = [],
+  loading = false,
+}: {
+  meetings?: Meeting[];
+  loading?: boolean;
+}) {
   const [selected, setSelected] = useState<Meeting | null>(null);
   const [layout, setLayout] = useState<Layout>("Agenda");
   const [view, setView] = useState<View>("Upcoming");
@@ -154,7 +135,14 @@ export function MeetingsAgenda({ meetings: initialMeetings }: { meetings: Meetin
       ) : (
         <>
           <div key={view} className="animate-filter-in">
-            {groups.length === 0 ? (
+            {loading ? (
+              <div className="px-5 py-20 text-center text-quiet">
+                <div className="mb-2 font-serif text-[21px] text-muted">
+                  Loading meetings
+                </div>
+                <div className="text-sm">Fetching the latest schedule.</div>
+              </div>
+            ) : groups.length === 0 ? (
               <div className="px-5 py-20 text-center text-quiet">
                 <div className="mb-2 font-serif text-[21px] text-muted">
                   Nothing on the calendar

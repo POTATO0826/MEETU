@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 type InboundWhatsAppMessage = {
   providerMessageId: string;
+  direction: "Inbound" | "Outbound";
   fromPhone: string;
   toPhone: string;
   senderName?: string;
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
 
   console.info("[internal-whatsapp-message]", "storing inbound message", {
     providerMessageId: payload.providerMessageId,
+    direction: payload.direction,
     fromPhone: maskPhone(payload.fromPhone),
     toPhone: maskPhone(payload.toPhone),
     bodyLength: payload.body.length,
@@ -73,6 +75,9 @@ export async function POST(request: Request) {
 
 function validatePayload(payload: InboundWhatsAppMessage) {
   if (!payload.providerMessageId) return "providerMessageId is required";
+  if (payload.direction !== "Inbound" && payload.direction !== "Outbound") {
+    return "direction must be Inbound or Outbound";
+  }
   if (!payload.fromPhone) return "fromPhone is required";
   if (!payload.toPhone) return "toPhone is required";
   if (!payload.body) return "body is required";
