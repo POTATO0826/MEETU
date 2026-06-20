@@ -21,7 +21,7 @@ what matters about every relationship.
 **Team CHAR SIEW PAO**
 
 - Vince Loo Yi Sheng
-- Lee Shuen Fui
+- Lee Shuen Fei
 - Vincent Lim Zhi Chen
 
 ## Overview
