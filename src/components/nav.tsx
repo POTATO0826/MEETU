@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ActivityIcon,
   CalendarIcon,
   ClientsIcon,
   RadarIcon,
@@ -10,6 +11,14 @@ import {
 } from "@/components/icons";
 
 const links = [
+  {
+    href: "/activity",
+    label: "Activity",
+    sub: "Client moments",
+    icon: ActivityIcon,
+    accent: "#8A6A3A",
+    tint: "rgba(138,106,58,0.12)",
+  },
   {
     href: "/leads",
     label: "Leads",

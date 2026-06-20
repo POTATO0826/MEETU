@@ -1,5 +1,5 @@
 import type { Lead } from "@/lib/leads";
-import { formatCurrency, formatRelative } from "@/lib/format";
+import { formatLeadPortfolio, formatRelative } from "@/lib/format";
 import { StatusPill, Avatar } from "@/components/ui";
 
 export function LeadCard({
@@ -28,7 +28,7 @@ export function LeadCard({
 
       <div className="flex items-baseline justify-between gap-2.5 pb-1 pt-0.5">
         <span className="font-serif text-[25px] font-medium tabular-nums tracking-[-0.01em] text-[#231F17]">
-          {formatCurrency(lead.estimatedPortfolio)}
+          {formatLeadPortfolio(lead.estimatedPortfolio)}
         </span>
         <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-dim">
           Est. portfolio

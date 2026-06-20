@@ -11,9 +11,15 @@
 import type * as conversationAgent from "../conversationAgent.js";
 import type * as conversationAgentActions from "../conversationAgentActions.js";
 import type * as crm from "../crm.js";
+import type * as debug from "../debug.js";
+import type * as manualConversionActions from "../manualConversionActions.js";
 import type * as news from "../news.js";
 import type * as newsActions from "../newsActions.js";
+import type * as repair from "../repair.js";
+import type * as reset from "../reset.js";
 import type * as seed from "../seed.js";
+import type * as social from "../social.js";
+import type * as socialActions from "../socialActions.js";
 import type * as whatsapp from "../whatsapp.js";
 
 import type {
@@ -26,9 +32,15 @@ declare const fullApi: ApiFromModules<{
   conversationAgent: typeof conversationAgent;
   conversationAgentActions: typeof conversationAgentActions;
   crm: typeof crm;
+  debug: typeof debug;
+  manualConversionActions: typeof manualConversionActions;
   news: typeof news;
   newsActions: typeof newsActions;
+  repair: typeof repair;
+  reset: typeof reset;
   seed: typeof seed;
+  social: typeof social;
+  socialActions: typeof socialActions;
   whatsapp: typeof whatsapp;
 }>;
 

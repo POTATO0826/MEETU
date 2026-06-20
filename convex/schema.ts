@@ -6,6 +6,7 @@ const leadStatus = v.union(
   v.literal("Contacted"),
   v.literal("Qualified"),
   v.literal("Proposal"),
+  v.literal("Converted"),
 );
 
 const serviceInterest = v.union(
@@ -68,6 +69,27 @@ const meetingStatus = v.union(
   v.literal("Tentative"),
   v.literal("Completed"),
   v.literal("Canceled"),
+);
+
+const clientActivityCategory = v.union(
+  v.literal("Travel"),
+  v.literal("Family"),
+  v.literal("Work"),
+  v.literal("Health"),
+  v.literal("Milestone"),
+  v.literal("Availability"),
+);
+
+const clientActivityPriority = v.union(
+  v.literal("Upcoming"),
+  v.literal("Recent"),
+  v.literal("Watch"),
+);
+
+const socialScrapeStatus = v.union(
+  v.literal("Running"),
+  v.literal("Succeeded"),
+  v.literal("Failed"),
 );
 
 const conversationAnalysisStatus = v.union(
@@ -184,6 +206,7 @@ export default defineSchema({
     situation: v.string(),
     whyApproached: v.string(),
     notes: v.array(v.string()),
+    facebookProfileUrl: v.optional(v.string()),
     createdAt: isoDateTime,
     updatedAt: isoDateTime,
   })
@@ -218,6 +241,73 @@ export default defineSchema({
     .index("by_client", ["clientId"])
     .index("by_lead", ["leadId"])
     .index("by_advisor", ["advisorId"]),
+
+  clientActivities: defineTable({
+    clientId: v.id("clients"),
+    conversationId: v.optional(v.id("whatsappConversations")),
+    messageId: v.optional(v.id("whatsappMessages")),
+    category: clientActivityCategory,
+    activity: v.string(),
+    timeframe: v.string(),
+    mentionedAt: isoDate,
+    suggestedTouchpoint: v.string(),
+    source: v.union(
+      v.literal("WhatsApp"),
+      v.literal("Facebook"),
+      v.literal("Manual"),
+      v.literal("Other"),
+    ),
+    priority: clientActivityPriority,
+    confidence: v.number(),
+    rationale: v.optional(v.string()),
+    createdAt: isoDateTime,
+    updatedAt: isoDateTime,
+  })
+    .index("by_client", ["clientId"])
+    .index("by_priority", ["priority"])
+    .index("by_mentioned_at", ["mentionedAt"])
+    .index("by_conversation", ["conversationId"]),
+
+  clientSocialScrapeRuns: defineTable({
+    clientId: v.id("clients"),
+    platform: v.literal("Facebook"),
+    profileUrl: v.string(),
+    provider: v.literal("Apify"),
+    actorId: v.string(),
+    providerRunId: v.optional(v.string()),
+    datasetId: v.optional(v.string()),
+    status: socialScrapeStatus,
+    requestedAt: isoDateTime,
+    completedAt: v.optional(isoDateTime),
+    error: v.optional(v.string()),
+    itemCount: v.number(),
+    createdAt: isoDateTime,
+    updatedAt: isoDateTime,
+  })
+    .index("by_client", ["clientId"])
+    .index("by_status", ["status"]),
+
+  clientSocialPosts: defineTable({
+    clientId: v.id("clients"),
+    scrapeRunId: v.id("clientSocialScrapeRuns"),
+    platform: v.literal("Facebook"),
+    profileUrl: v.string(),
+    externalPostId: v.optional(v.string()),
+    postUrl: v.optional(v.string()),
+    postedAt: v.optional(isoDateTime),
+    text: v.string(),
+    rawPayload: v.any(),
+    analysisStatus: v.union(
+      v.literal("Pending"),
+      v.literal("Processed"),
+      v.literal("Skipped"),
+    ),
+    createdAt: isoDateTime,
+    updatedAt: isoDateTime,
+  })
+    .index("by_client", ["clientId"])
+    .index("by_scrape_run", ["scrapeRunId"])
+    .index("by_post_url", ["postUrl"]),
 
   whatsappConversations: defineTable({
     advisorId: v.id("advisors"),
@@ -336,6 +426,20 @@ export default defineSchema({
     .index("by_conversation", ["conversationId"])
     .index("by_client", ["clientId"])
     .index("by_lead", ["leadId"]),
+
+  agentEvents: defineTable({
+    type: v.union(v.literal("ManualLeadConversion")),
+    leadId: v.optional(v.id("leads")),
+    clientId: v.optional(v.id("clients")),
+    conversationId: v.optional(v.id("whatsappConversations")),
+    summary: v.string(),
+    metadata: v.any(),
+    createdAt: isoDateTime,
+  })
+    .index("by_lead", ["leadId"])
+    .index("by_client", ["clientId"])
+    .index("by_conversation", ["conversationId"])
+    .index("by_type", ["type"]),
 
   advisorTasks: defineTable({
     advisorId: v.id("advisors"),

@@ -16,6 +16,7 @@
     "@hapi/boom": "^10.0.1",
     "@whiskeysockets/baileys": "^7.0.0-rc13",
     "ai": "^6.0.208",
+    "apify-client": "^2.23.4",
     "convex": "^1.41.0",
     "mem0ai": "^3.0.9",
     "next": "16.2.9",

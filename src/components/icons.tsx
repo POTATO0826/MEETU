@@ -140,3 +140,12 @@ export function ClientsIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function ActivityIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)} strokeWidth={1.7}>
+      <path d="M4 17.5V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z" />
+      <path d="M8 13.5 10.2 9l3 6 2-4h1.8" />
+    </svg>
+  );
+}
